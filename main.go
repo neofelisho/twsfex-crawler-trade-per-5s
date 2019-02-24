@@ -18,17 +18,17 @@ import (
 )
 
 var (
-	csvUrl      string
-	dateString  string
-	date        time.Time
-	mongoApiUrl string
+	dataSource string
+	apiUrl     string
+	dateString string
+	date       time.Time
 )
 
 func main() {
+	getEnvironments()
 	initFlags()
 
-	ioReader := getCsvDataFromUrl()
-	//ioReader := inputFromFile()
+	ioReader := getCsvData(dataSource)
 	defer func() {
 		if err := ioReader.Close(); err != nil {
 			panic(err)
@@ -40,8 +40,18 @@ func main() {
 	saveToDb(orderBooks)
 }
 
-func getCsvDataFromUrl() io.ReadCloser {
-	s := csvUrl + dateString
+func getCsvData(s string) io.ReadCloser {
+	if strings.HasPrefix(s, "http") {
+		return getCsvDataFromUrl(s)
+	}
+	if strings.HasSuffix(s, ".csv") {
+		return inputFromFile(s)
+	}
+	panic("incorrect data source")
+}
+
+func getCsvDataFromUrl(sourceUrl string) io.ReadCloser {
+	s := sourceUrl + dateString
 	resp, err := http.Get(s)
 	if err != nil {
 		panic(err)
@@ -50,8 +60,8 @@ func getCsvDataFromUrl() io.ReadCloser {
 	return resp.Body
 }
 
-func inputFromFile() *os.File {
-	f, err := os.Open("MI_5MINs_20190215.csv")
+func inputFromFile(fileName string) *os.File {
+	f, err := os.Open(fileName)
 	if err != nil {
 		panic(err)
 	}
@@ -70,7 +80,7 @@ func saveToDb(orderBooks []model.OrderBook) {
 		panic(err)
 	}
 
-	apiUrl, err := url.Parse(mongoApiUrl)
+	apiUrl, err := url.Parse(apiUrl)
 	if err != nil {
 		panic(err)
 	}
@@ -137,11 +147,8 @@ func parseCsv(r io.Reader) *csv.Reader {
 }
 
 func initFlags() {
-	flag.StringVar(&csvUrl, "csvUrl", "http://www.twse.com.tw/en/exchangeReport/MI_5MINS?response=csv&date=", "the url to get csv file")
 	flag.StringVar(&dateString, "date", "20190218", "which day's data should be parsed")
-	flag.StringVar(&mongoApiUrl, "mongoApiUrl", "http://localhost:8080/daily", "backend api for accessing database")
 	flag.Parse()
-
 	getDate()
 }
 
@@ -151,4 +158,13 @@ func getDate() {
 	month, _ := strconv.ParseInt(dateString[4:6], 10, 8)
 	day, _ := strconv.ParseInt(dateString[6:], 10, 8)
 	date = time.Date(int(year), time.Month(month), int(day), 0, 0, 0, 0, local)
+}
+
+func getEnvironments() {
+	if dataSource = os.Getenv("dataSource"); dataSource == "" {
+		dataSource = "http://www.twse.com.tw/en/exchangeReport/MI_5MINS?response=csv&date="
+	}
+	if apiUrl = os.Getenv("apiUrl"); apiUrl == "" {
+		apiUrl = "http://mongo-api:8080/daily"
+	}
 }
