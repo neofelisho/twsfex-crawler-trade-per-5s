@@ -69,10 +69,12 @@ func inputFromFile(fileName string) *os.File {
 }
 
 func saveToDb(orderBooks []model.OrderBook) {
-	doc := model.TWSEDaily{
-		Date:       date,
-		Opening:    orderBooks[0],
-		Close:      orderBooks[1],
+	doc := model.Daily{
+		Date: date,
+		Quotes: model.Quotes{
+			Opening: orderBooks[0],
+			Close:   orderBooks[1],
+		},
 		UpdateTime: time.Now(),
 	}
 	jsonValue, err := json.Marshal(doc)
@@ -106,7 +108,7 @@ func parseOrderBook(r *csv.Reader) []model.OrderBook {
 	for i := 0; i < len(ss); i++ {
 		row := ss[i]
 		results[i] = model.OrderBook{
-			TimeStamp:   getTime(row[0]).Unix(),
+			Time:        getTime(row[0]),
 			BidOrders:   getNumbers(strings.Replace(row[1], ",", "", -1)),
 			BidVolume:   getNumbers(strings.Replace(row[2], ",", "", -1)),
 			AskOrders:   getNumbers(strings.Replace(row[3], ",", "", -1)),
@@ -165,6 +167,6 @@ func getEnvironments() {
 		dataSource = "http://www.twse.com.tw/en/exchangeReport/MI_5MINS?response=csv&date="
 	}
 	if apiUrl = os.Getenv("apiUrl"); apiUrl == "" {
-		apiUrl = "http://mongo-api:8080/daily"
+		apiUrl = "http://127.0.0.1:8080/daily"
 	}
 }
